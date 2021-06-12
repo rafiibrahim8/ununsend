@@ -1,0 +1,8 @@
+fbchat @ https://github.com/fbchat-dev/fbchat/archive/refs/heads/v1.zip
+browser-cookie3
+pycryptodome
+SQLAlchemy
+requests
+psutil
+Flask
+click

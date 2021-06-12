@@ -1,6 +1,8 @@
 fbchat @ https://github.com/fbchat-dev/fbchat/archive/refs/heads/v1.zip
 browser-cookie3
+Flask-SocketIO
 pycryptodome
+Flask-Login
 SQLAlchemy
 requests
 psutil

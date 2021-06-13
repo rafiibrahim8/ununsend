@@ -11,11 +11,14 @@ This program is for educational purpose only. I am not responsible for any misus
 Ununsend can show messages that were unsent from the Messenger. Just keep running an instance of Ununsend on the background and you will be notified when someone unsends a message.
 
 # INSTALLATION
+
 From a command line enter the command to install ununsend
 ```
 pip install git+https://github.com/rafiibrahim8/ununsend.git --upgrade
 ```
 You need to have python 3 and pip>=19.0 installed. Ununsend won't run on python 2.
+
+See [wiki](https://github.com/rafiibrahim8/ununsend/wiki/Index) for details.
 
 # USES
 Frist you need to setup your facebook id, notification stuffs by running:
@@ -37,6 +40,8 @@ To start ununsent, simply run:
 ununsend
 ```
 to view name and country. Use `ununsend --help` for full commands list.
+
+See [wiki](https://github.com/rafiibrahim8/ununsend/wiki/Index) for details.
 
 # ISSUES
 

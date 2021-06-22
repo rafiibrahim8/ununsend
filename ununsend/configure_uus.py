@@ -121,6 +121,8 @@ class ConfigureUUS:
         self.__dbms.update_website_stuff('cookie', cookies)
 
     def is_valid_url(self, url):
+        if not url:
+            return False
         try:
             urllib.parse.urlparse(url)
             return True
@@ -180,7 +182,7 @@ class ConfigureUUS:
                 break
         self.__dbms.update_website_stuff('max_message_age', max_message_age)
         self.__dbms.update_website_stuff('cleanup_interval', cleanup_interval)
-    
+
     def configure(self):
         c = click.confirm('Configure cookies?', default=True)
         if c:

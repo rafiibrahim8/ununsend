@@ -7,6 +7,13 @@ import re
 
 from .utils import AESCipher
 
+def get_int(prompt, default):
+    while True:
+        try:
+            return int(click.prompt(prompt, default=f'{default}'))
+        except:
+            print('Invalid Input. Try again.')
+
 class ConfigureUUS:
     def __init__(self, dbms):
         self.__dbms=dbms
@@ -114,6 +121,8 @@ class ConfigureUUS:
         self.__dbms.update_website_stuff('cookie', cookies)
 
     def is_valid_url(self, url):
+        if not url:
+            return False
         try:
             urllib.parse.urlparse(url)
             return True
@@ -148,13 +157,46 @@ class ConfigureUUS:
             print('Empty token.')
         self.__dbms.update_website_stuff('push_bullet', token)
     
+
+    def configure_discord_all_msg(self):
+        discord = self.__dbms.get_website_stuff('discord_all_message')
+        if  discord != None:
+            print('Discord all message notification is already configured.')
+            overwrite = click.confirm('Overwrite?', default=False)
+            if not overwrite:
+                return
+        while True:
+            url = input('Enter discord hook URL: ').strip()
+            if self.is_valid_url(url):
+                break
+            print('Invalid URL.')
+        self.__dbms.update_website_stuff('discord_all_message', url)
+
+    def configure_cleanup(self):
+        while True:
+            max_message_age = get_int('Max message age (hours)', 36)
+            cleanup_interval = get_int('Cleanup interval (hours)', 4)
+            if cleanup_interval > max_message_age:
+                print('Cleanup interval can not be higher than max message age.\nTry again.')
+            else:
+                break
+        self.__dbms.update_website_stuff('max_message_age', max_message_age)
+        self.__dbms.update_website_stuff('cleanup_interval', cleanup_interval)
+
     def configure(self):
         c = click.confirm('Configure cookies?', default=True)
         if c:
             self.configure_cookie()
-        c = click.confirm('Configure discord notification?', default=True)
+        c = click.confirm('Configure discord unsent notification?', default=True)
         if c:
             self.configure_discord_hook()
-        c = click.confirm('Configure Push Bullet notification?', default=True)
+        c = click.confirm('Configure Push Bullet unsent notification?', default=True)
         if c:
             self.configure_push_bullet()
+        c = click.confirm('Configure discord all message notification?', default=True)
+        if c:
+            self.configure_discord_all_msg()
+        c = click.confirm('Configure max message age and cleanup interval?', default=True)
+        if c:
+            self.configure_cleanup()
+

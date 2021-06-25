@@ -56,6 +56,8 @@ class UnsentMessage(Base):
     sender = Column(String)
     sender_name = Column(String)
     message = Column(String)
+    thread_id = Column(String)
+    thread_name = Column(String)
 
     def __repr__(self):
         rep = {'index': self.message_index, 'mid': self.message_id}
@@ -65,6 +67,11 @@ class Contacts(Base):
     __tablename__ = 'contacts'
 
     user_id = Column(String, primary_key=True)
+    name = Column(String)
+
+class MessageThreads(Base):
+    __tablename__ ='message_threads'
+    thread_id = Column(String, primary_key=True)
     name = Column(String)
 
 class AuthManager:
@@ -121,9 +128,16 @@ class UnsentManager:
 
     def queryContact(self, user_id):
         return self.__dbSession.query(Contacts).filter_by(user_id=user_id).first()
+    
+    def queryMessageThread(self, thread_id):
+        return self.__dbSession.query(MessageThreads).filter_by(thread_id=thread_id).first()
 
-    def addUnsentMessage(self, message_id, timestamp, timestamp_us, sender, sender_name, message):
-        dbObject = UnsentMessage(message_id=message_id, timestamp=timestamp, timestamp_us=timestamp_us, sender=sender, sender_name=sender_name, message=message)
+    def addMessageThread(self, thread_id, name):
+        self.__dbSession.add(MessageThreads(thread_id=thread_id, name=name))
+        self.__dbSession.commit()
+
+    def addUnsentMessage(self, message_id, timestamp, timestamp_us, sender, sender_name, message, thread_id, thread_name):
+        dbObject = UnsentMessage(message_id=message_id, timestamp=timestamp, timestamp_us=timestamp_us, sender=sender, sender_name=sender_name, message=message, thread_id=thread_id, thread_name=thread_name)
         self.__dbSession.add(dbObject)
         self.__dbSession.commit()
     

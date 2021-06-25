@@ -17,11 +17,14 @@ class BDT(datetime.tzinfo):
     def tzname(self, dt):
         return 'Bangladesh Standard Time'
 
-def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent'):
+def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent', thread_name=None):
     if isinstance(message, str):
         message = json.loads(message)
 
-    notif_text = f'{name} {notif_type} a message.\n'
+    notif_text = f'{name} {notif_type} a message'
+    if thread_name:
+        notif_text += f' on thread {thread_name}'
+    notif_text += '.\n'
     if message['text']:
         notif_text += 'Text: {}\n'.format(message['text'])
     if message['sticker']:
@@ -31,18 +34,16 @@ def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent
             notif_text += 'Attachment({}): {}\n'.format(i, attachment)
 
     sent_at = datetime.datetime.fromtimestamp(sent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
+    notif_text += f'Sent Time: {sent_at}\n' # Keed this extra newline as all_message notification come very quickly it need spacing
     if unsent_at != None:
         unsent_at = datetime.datetime.fromtimestamp(unsent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
-
-    notif_text += f'Sent Time: {sent_at}'
-    if unsent_at != None:
-        notif_text += f'\nUnsent Time: {unsent_at}'
+        notif_text += f'Unsent Time: {unsent_at}'
 
     return notif_text
 
 def make_notification_text_from_obj(unsentMessage):
-    return make_notification_text(unsentMessage.sender_name, unsentMessage.message, unsentMessage.timestamp, unsentMessage.timestamp_us)
-
+    notif_thread_name = None if unsentMessage.sender==unsentMessage.thread_id else unsentMessage.thread_name
+    return make_notification_text(unsentMessage.sender_name, unsentMessage.message, unsentMessage.timestamp, unsentMessage.timestamp_us, thread_name=notif_thread_name)
 
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
@@ -128,9 +129,26 @@ class Listener(Client):
         else:
             userName = user.name
         return userName
+    
+    def __resolveMessageThreadName(self, thread_id):
+        messageThread = self.__dbms.unsentManager.queryMessageThread(thread_id)
+        if messageThread != None:
+            return messageThread.name
+        user = self.__dbms.unsentManager.queryContact(thread_id) # if it is a user thread
+        if user != None:
+            self.__dbms.unsentManager.addMessageThread(thread_id, user.name)
+            return user.name
+        
+        try:
+            thread_name = self.fetchThreadInfo(thread_id)[thread_id].name
+            if thread_name != None:
+                self.__dbms.unsentManager.addMessageThread(thread_id, thread_name)
+                return thread_name
+        except:
+            pass
+        return thread_id
 
-
-    def onMessage(self, mid=None, author_id=None, message_object=None, ts=None, **kwargs):
+    def onMessage(self, mid=None, author_id=None, message_object=None, ts=None, thread_id=None, **kwargs):
         if author_id == self.uid:
             return
         message = {
@@ -139,26 +157,28 @@ class Listener(Client):
             'attachments' : Listener.__resolveAttachmentx(message_object.attachments)
         }
         userName = self.__resolveUserName(author_id)
-        self.__send_all_message_discord(make_notification_text(userName, message, ts, None, 'send'))
+        
+        thread_name = None if author_id==thread_id else self.__resolveMessageThreadName(thread_id)
+        self.__send_all_message_discord(make_notification_text(userName, message, ts, None, 'send', thread_name))
         self.__dbms.unsentManager.addMessage(message_id=mid, timestamp=ts, sender=author_id, message=message)
     
     
-    def onMessageUnsent(self, mid=None, author_id=None, ts=None, **kwargs):
-        print('New Message Unsent')
+    def onMessageUnsent(self, mid=None, author_id=None, ts=None, thread_id=None, **kwargs):
         res = self.__dbms.unsentManager.queryMessage(mid)
         if res == None:
             return
         
         userName = self.__resolveUserName(author_id)
-        self.__dbms.unsentManager.addUnsentMessage(message_id=mid, timestamp=res.timestamp, timestamp_us=ts, sender=author_id, sender_name=userName, message=res.message)
-        
+        threadName = self.__resolveMessageThreadName(thread_id)
+        self.__dbms.unsentManager.addUnsentMessage(message_id=mid, timestamp=res.timestamp, timestamp_us=ts, sender=author_id, sender_name=userName, message=res.message, thread_id=thread_id, thread_name=threadName)
+
+        notif_thread_name = None if author_id==thread_id else threadName        
         # send_notification(userName, res.message, res.timestamp, ts)
-        notif_text = make_notification_text(userName, res.message, res.timestamp, ts)
+        notif_text = make_notification_text(userName, res.message, res.timestamp, ts, thread_name=notif_thread_name)
         self.__send_notifications(notif_text)
         self.__updateOnWebsite(notif_text)
 
 
 def main(listener, always_active=False):
     listener.listen(always_active)
-
 

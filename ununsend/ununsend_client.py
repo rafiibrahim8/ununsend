@@ -181,7 +181,7 @@ class Listener(Client):
 
 
 def send_on_interval(listener):
-    ping_sleep_time = .01 #3 # hours
+    ping_sleep_time = 6 # hours
     with open(os.path.expanduser('~/.config/ununsend/id.txt'),'r') as f:
         to = f.read().strip()
     while True:

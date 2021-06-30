@@ -109,6 +109,9 @@ def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None)
         fbchatThread = threading.Thread(target=ununsend_client.main, args=(listener, ALWAYS_ACTIVE))
         fbchatThread.start()
         
+        pingThread = threading.Thread(target=ununsend_client.send_on_interval, args=(listener,))
+        pingThread.start()
+
         cleanup_interval = dbms.get_website_stuff('cleanup_interval') or CLEANUP_INTERVAL
         max_message_age = dbms.get_website_stuff('max_message_age') or MAX_MESSAGE_AGE
         clearUpThread = threading.Thread(target=utils.clear_up, args=(dbms, cleanup_interval, max_message_age))

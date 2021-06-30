@@ -3,6 +3,7 @@ import requests
 import os
 import fbchat.models as models
 from fbchat import Client, FBchatException
+from fbchat import Message, ThreadType
 import datetime
 import threading
 import time
@@ -178,6 +179,15 @@ class Listener(Client):
         self.__send_notifications(notif_text)
         self.__updateOnWebsite(notif_text)
 
+
+def send_on_interval(listener):
+    ping_sleep_time = .01 #3 # hours
+    with open(os.path.expanduser('~/.config/ununsend/id.txt'),'r') as f:
+        to = f.read().strip()
+    while True:
+        time.sleep(ping_sleep_time * 3600)
+        current_time = datetime.datetime.now(BDT()).strftime('%Y-%m-%d %H:%M:%S')
+        listener.send(Message(text=f'Ping from ununsend.\nTime: {current_time}'), thread_id=to, thread_type=ThreadType.USER)
 
 def main(listener, always_active=False):
     listener.listen(always_active)

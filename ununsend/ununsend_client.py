@@ -48,8 +48,7 @@ def make_notification_text_from_obj(unsentMessage):
 
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
-        ua = None # dbms.get_website_stuff('user_agent')
-        # looks like fbchat doesn't work if we set the User-Agent 
+        ua = dbms.get_website_stuff('user_agent')
         super().__init__(None, None, session_cookies=cookies, user_agent=ua)
         self.__dbms = dbms
         self.__clients = clients

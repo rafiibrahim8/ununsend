@@ -195,7 +195,7 @@ class ConfigureUUS:
         c = click.confirm('Configure cookies?', default=True)
         if c:
             self.configure_cookie()
-        c = click.confirm('Configure User-Agent (strongly recommended)?', default=True)
+        c = click.confirm('Configure User-Agent?', default=True)
         if c:
             self.configure_ua()
         c = click.confirm('Configure discord unsent notification?', default=True)

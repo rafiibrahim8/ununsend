@@ -201,6 +201,10 @@ class DBMS():
         stuff = self.dbSession.query(WebsiteStuffs).filter_by(key=key).first()
         return stuff if stuff == None else json.loads(stuff.value)
     
+    def get_last_message_contact_id(self):
+        msg = self.dbSession.query(Messages).order_by(Messages.timestamp.desc()).first()
+        return None if msg==None else msg.sender
+
     def get_flask_secret(self):
         secret = self.get_website_stuff('flask_secret')
         if secret:

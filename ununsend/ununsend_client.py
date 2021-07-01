@@ -48,7 +48,8 @@ def make_notification_text_from_obj(unsentMessage):
 
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
-        ua = dbms.get_website_stuff('user_agent')
+        ua = None # dbms.get_website_stuff('user_agent')
+        # looks like fbchat doesn't work if we set the User-Agent 
         super().__init__(None, None, session_cookies=cookies, user_agent=ua)
         self.__dbms = dbms
         self.__clients = clients
@@ -189,6 +190,17 @@ def send_on_interval(listener):
         time.sleep(ping_sleep_time * 3600)
         current_time = datetime.datetime.now(BDT()).strftime('%Y-%m-%d %H:%M:%S')
         listener.send(Message(text=f'Ping from ununsend.\nTime: {current_time}'), thread_id=to, thread_type=ThreadType.USER)
+
+def check_online_for_keep_alive(listener, dbms):
+    ping_sleep_time = 6 # hours
+    while True:
+        time.sleep(ping_sleep_time * 3600)
+        uid = dbms.get_last_message_contact_id()
+        if uid:
+            try:
+                listener.getUserActiveStatus(uid)
+            except:
+                pass
 
 def main(listener, always_active=False):
     listener.listen(always_active)

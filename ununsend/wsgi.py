@@ -11,6 +11,7 @@ import json
 import functools
 import getpass
 import os
+import sys
 
 from . import ununsend_client
 from .dbms import DBMS
@@ -20,6 +21,10 @@ from . import __static_path, __template_path
 ALWAYS_ACTIVE = False
 CLEANUP_INTERVAL = 4 # Hours
 MAX_MESSAGE_AGE = 36 # Hours
+
+# Disable Flask.run() warnings. From: https://gist.github.com/jerblack/735b9953ba1ab6234abb43174210d356
+flask_cli = sys.modules['flask.cli']
+flask_cli.show_server_banner = lambda *x: None
 
 app = Flask(__name__, template_folder=os.path.expanduser(__template_path), static_folder=os.path.expanduser(__static_path))
 login_manager = LoginManager(app)
@@ -108,7 +113,7 @@ def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None)
         fbchatThread = utils.DaemonThread(ununsend_client.main, listener, ALWAYS_ACTIVE)
         fbchatThread.start()
         
-        pingThread = utils.DaemonThread(ununsend_client.send_on_interval, listener)
+        pingThread = utils.DaemonThread(ununsend_client.check_online_for_keep_alive, listener, dbms)
         pingThread.start()
 
         cleanup_interval = dbms.get_website_stuff('cleanup_interval') or CLEANUP_INTERVAL

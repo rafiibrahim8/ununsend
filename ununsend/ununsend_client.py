@@ -5,7 +5,6 @@ import fbchat.models as models
 from fbchat import Client, FBchatException
 from fbchat import Message, ThreadType
 import datetime
-import threading
 import time
 
 from . import utils
@@ -34,12 +33,13 @@ def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent
         for i, attachment in enumerate(message['attachments'], start=1):
             notif_text += 'Attachment({}): {}\n'.format(i, attachment)
 
-    sent_at = datetime.datetime.fromtimestamp(sent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
-    notif_text += f'Sent Time: {sent_at}\n' # Keed this extra newline as all_message notification come very quickly it need spacing
-    if unsent_at != None:
+    if notif_type == 'unsent':
+        sent_at = datetime.datetime.fromtimestamp(sent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
+        notif_text += f'Sent Time: {sent_at}\n'
         unsent_at = datetime.datetime.fromtimestamp(unsent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
         notif_text += f'Unsent Time: {unsent_at}'
-
+    else:
+        notif_text += chr(0x200b)
     return notif_text
 
 def make_notification_text_from_obj(unsentMessage):
@@ -48,7 +48,8 @@ def make_notification_text_from_obj(unsentMessage):
 
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
-        super().__init__(None, None, session_cookies=cookies)
+        ua = dbms.get_website_stuff('user_agent')
+        super().__init__(None, None, session_cookies=cookies, user_agent=ua)
         self.__dbms = dbms
         self.__clients = clients
         self.__socket = socket

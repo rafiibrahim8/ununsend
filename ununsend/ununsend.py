@@ -1,8 +1,7 @@
 from argparse import ArgumentParser
-from multiprocessing import cpu_count
 
 from .dbms import DBMS
-from . import utils
+from .utils import format_token_print
 from .wsgi import website_main
 from .configure_uus import ConfigureUUS
 from . import __version__
@@ -20,7 +19,7 @@ class UnunsendMain:
 
     def new_token_and_run(self):
         token =  self.__dbms.tokenManager.add_and_get_new_token()
-        self.run_server(True, utils.format_token_print(token, self.port, False))
+        self.run_server(True, format_token_print(token, self.port, False))
 
     def get_port(self):
         good_port = True

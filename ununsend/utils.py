@@ -1,11 +1,11 @@
 import time
 import json
 import psutil
-import socket
-import threading
 import requests
 import click
 import base64
+from socket import AF_INET
+from threading import Thread
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
@@ -35,6 +35,11 @@ class AESCipher(object):
     def _unpad(s):
         return s[:-ord(s[len(s)-1:])]
 
+class DaemonThread(Thread):
+    def __init__(self, func, *args):
+        super().__init__(target=func, args=tuple(args))
+        self.daemon = True
+
 def clear_up(dbms, cleanupInterval, maxMessageAge):
     while True:
         time.sleep(cleanupInterval * 3600)
@@ -56,7 +61,7 @@ def update_on_website(socket, notif_texts, client=None):
 def get_if_addrs():
     addrs = []
     for _, v in psutil.net_if_addrs().items():
-        if v[0].family == socket.AF_INET:
+        if v[0].family == AF_INET:
             addrs.append(v[0].address)
     return addrs  
 
@@ -86,7 +91,7 @@ def print_with_delay(texts, delay):
         time.sleep(_delay)
         for i in _texts:
             print(i)
-    threading.Thread(target=print_with_delay_impl, args=(texts, delay)).start()
+    DaemonThread(print_with_delay_impl, texts, delay).start()
 
 def decrypt_cookies(cookie, password):
     password = 'UnUnsend' + password

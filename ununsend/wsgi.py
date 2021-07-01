@@ -7,7 +7,6 @@ from fbchat import FBchatUserError
 import time
 import string
 import random
-import threading
 import json
 import functools
 import getpass
@@ -106,15 +105,16 @@ def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None)
             print('Failed to login. Please check if the cookie has expired then try again.')
             return
         
-        fbchatThread = threading.Thread(target=ununsend_client.main, args=(listener, ALWAYS_ACTIVE))
+        fbchatThread = utils.DaemonThread(ununsend_client.main, listener, ALWAYS_ACTIVE)
         fbchatThread.start()
         
-        pingThread = threading.Thread(target=ununsend_client.send_on_interval, args=(listener,))
+        pingThread = utils.DaemonThread(ununsend_client.send_on_interval, listener)
         pingThread.start()
 
         cleanup_interval = dbms.get_website_stuff('cleanup_interval') or CLEANUP_INTERVAL
         max_message_age = dbms.get_website_stuff('max_message_age') or MAX_MESSAGE_AGE
-        clearUpThread = threading.Thread(target=utils.clear_up, args=(dbms, cleanup_interval, max_message_age))
+        
+        clearUpThread = utils.DaemonThread(utils.clear_up, dbms, cleanup_interval, max_message_age)
         clearUpThread.start()
     
     if active_network:

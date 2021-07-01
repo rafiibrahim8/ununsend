@@ -6,6 +6,7 @@ import getpass
 import re
 
 from .utils import AESCipher
+from .ua_getter import UAGetter
 
 def get_int(prompt, default):
     while True:
@@ -45,8 +46,12 @@ class ConfigureUUS:
         return cookies
     
     def get_user_cookie(self):
-        print('Checking for messenger profiles on the PC.\nThis may take some time.\nPlease wait...')
-        profiles = self.check_for_fb_profile()
+        print('Checking for messenger profiles on the PC.\nThis may take some time.\nPlease wait...') 
+        profiles = []
+        for i in self.check_for_fb_profile():
+            if i.get('user_name') != 'Facebook – log in or sign up':
+                profiles.append(i)
+        
         if not profiles:
             print('Unable to find any profile on this PC.\nEnter manually.')
             return self.manual_cookie_in()
@@ -58,16 +63,11 @@ class ConfigureUUS:
             if not user_input:
                 return self.manual_cookie_in()
             try: 
-                user_input = int(user_input)
+                cookie = profiles[int(user_input)-1]
             except: 
-                print('Invalid input.')
+                print('Invalid input. Try Again.')
                 continue
-            if user_input > len(profiles) or user_input < 1:
-                print('Invalid input.')
-                continue
-            print(f'Selected profile: {profiles[user_input-1].get("user_name")}')
-            cookie = profiles[user_input-1]
-            del cookie['browser_name']
+            print(f'Selected profile: {cookie.get("user_name")}')
             return cookie
 
     def encrypt_cookies(self, cookies, password):
@@ -120,6 +120,14 @@ class ConfigureUUS:
             cookies = {'encrypted': False, 'user_name': cookie.get('user_name') , 'value': cookie.get('cookie')}
         self.__dbms.update_website_stuff('cookie', cookies)
 
+    def configure_ua(self):
+        ua = UAGetter().run()
+        if not ua:
+            print('Unable to get User-Agent.\n')
+            return
+        print(f'Got User-Agent: {ua}\n')
+        self.__dbms.update_website_stuff('user_agent', ua)
+    
     def is_valid_url(self, url):
         if not url:
             return False
@@ -187,6 +195,9 @@ class ConfigureUUS:
         c = click.confirm('Configure cookies?', default=True)
         if c:
             self.configure_cookie()
+        c = click.confirm('Configure User-Agent (strongly recommended)?', default=True)
+        if c:
+            self.configure_ua()
         c = click.confirm('Configure discord unsent notification?', default=True)
         if c:
             self.configure_discord_hook()

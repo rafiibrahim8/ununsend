@@ -4,13 +4,10 @@ import time
 import os
 
 from .utils import DaemonThread
-from . import __template_path as _template_path
-
 
 POOL_DELAY = .1 # sec
 TIMEOUT = 300 # sec
 _ua_list = []
-
 
 class HTTPRequestHandler(BaseHTTPRequestHandler):    
     def log_request(self, *args):
@@ -32,6 +29,8 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
     
     def send_responsex(self, body, r_code=200):
         if isinstance(body, str):
+            if not body.endswith('\n'):
+                body += '\n'
             body = body.encode('utf-8')
             content_type = 'text/plain'
         else:
@@ -44,23 +43,17 @@ class HTTPRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def handle_get_requestx(self):
-        path, params = self.parse_get_requestx()
+        path, _ = self.parse_get_requestx()
 
-        if path == '/favicon.ico':
-            self.send_responsex('Not Found', 404)
-
-        elif path == '/':
-            http_file = os.path.join(os.path.expanduser(_template_path), 'get-ua.html')
-            with open(http_file,'rb') as f:
-                self.send_responsex(f.read())
-        elif path == '/ua':
-            if params.get('ua') == None:
-                self.send_responsex('Invalid request. Please try again.', 400)
+        if path == '/':
+            ua = self.headers.get('User-Agent')
+            if ua:
+                self.send_responsex(f'Found User-Agent: {ua}\nYou can go back to ununsend now.')
             else:
-                _ua_list.append(params.get('ua'))
-                self.send_responsex('Successfully got User-Agent. You can now go back to ununsend.')
+                self.send_responsex('Unable to find User-Agent.\nThe browser is not sending User-Agent header.', 400)
+            _ua_list.append(ua)
         else:
-            self.send_responsex('Not Found', 404)
+            self.send_responsex('Not Found.', 404)
 
     def do_GET(self):
         self.handle_get_requestx()
@@ -89,7 +82,7 @@ class UAGetter:
         self.__will_serve = False
         time.sleep(POOL_DELAY)
 
-    def run(self):
+    def get(self):
         # clearing up if have any
         while _ua_list:
             _ua_list.pop()
@@ -112,3 +105,4 @@ class UAGetter:
         self.__stop_server()
         print('Timeout waiting for User-Agent')
         return None
+

@@ -121,7 +121,7 @@ class ConfigureUUS:
         self.__dbms.update_website_stuff('cookie', cookies)
 
     def configure_ua(self):
-        ua = UAGetter().run()
+        ua = UAGetter().get()
         if not ua:
             print('Unable to get User-Agent.\n')
             return
@@ -195,7 +195,7 @@ class ConfigureUUS:
         c = click.confirm('Configure cookies?', default=True)
         if c:
             self.configure_cookie()
-        c = click.confirm('Configure User-Agent?', default=True)
+        c = click.confirm('Configure User-Agent (highly recommended)?', default=True)
         if c:
             self.configure_ua()
         c = click.confirm('Configure discord unsent notification?', default=True)

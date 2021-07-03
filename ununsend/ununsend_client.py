@@ -8,6 +8,7 @@ import datetime
 import time
 
 from . import utils
+from . import colors
 
 class BDT(datetime.tzinfo):
     def utcoffset(self, dt):
@@ -82,6 +83,15 @@ class Listener(Client):
     def __updateOnWebsite(self, notif_text):
         for i in self.__clients:
             utils.update_on_website(self.__socket, notif_text, i)
+
+    def debug_discord(self, message):
+        debug_hook = self.__dbms.get_website_stuff('debug_discord')
+        if not debug_hook:
+            return
+        try:
+            requests.post(debug_hook, json={'content': message})
+        except:
+            print(f'{colors.red}Debug Discord: {message}{colors.end}')
 
     def __send_notification_discord(self, notif_text):
         discord_hook = self.__dbms.get_website_stuff('discord')
@@ -180,21 +190,16 @@ class Listener(Client):
         self.__send_notifications(notif_text)
         self.__updateOnWebsite(notif_text)
 
-
-def send_on_interval(listener):
+def keep_alive(listener, dbms):
     ping_sleep_time = 6 # hours
-    with open(os.path.expanduser('~/.config/ununsend/id.txt'),'r') as f:
-        to = f.read().strip()
+    ping_active_time = 200 #sec
     while True:
-        time.sleep(ping_sleep_time * 3600)
-        current_time = datetime.datetime.now(BDT()).strftime('%Y-%m-%d %H:%M:%S')
-        listener.send(Message(text=f'Ping from ununsend.\nTime: {current_time}'), thread_id=to, thread_type=ThreadType.USER)
-
-def check_online_for_keep_alive(listener, dbms):
-    ping_sleep_time = 6 # hours
-    while True:
-        time.sleep(ping_sleep_time * 3600)
+        time.sleep(ping_sleep_time * 3600 - ping_active_time)
+        listener.setActiveStatus(True)
+        time.sleep(ping_active_time)
+        listener.setActiveStatus(False)
         uid = dbms.get_last_message_contact_id()
+        listener.debug_discord('Done keep alive.')
         if uid:
             try:
                 listener.getUserActiveStatus(uid)

@@ -113,7 +113,7 @@ def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None)
         fbchatThread = utils.DaemonThread(ununsend_client.main, listener, ALWAYS_ACTIVE)
         fbchatThread.start()
         
-        pingThread = utils.DaemonThread(ununsend_client.check_online_for_keep_alive, listener, dbms)
+        pingThread = utils.DaemonThread(ununsend_client.keep_alive, listener, dbms)
         pingThread.start()
 
         cleanup_interval = dbms.get_website_stuff('cleanup_interval') or CLEANUP_INTERVAL

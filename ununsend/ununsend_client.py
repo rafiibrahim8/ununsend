@@ -197,6 +197,13 @@ def keep_alive(listener, dbms):
         time.sleep(ping_sleep_time * 3600 - ping_active_time)
         listener.setActiveStatus(True)
         time.sleep(ping_active_time)
+        keep_alive_thread = dbms.get_website_stuff('keep_alive_thread')
+        if keep_alive_thread:
+            ka_text = 'Ununsend keep-alive at ' + datetime.datetime.now(BDT()).strftime('%Y-%m-%d %H:%M:%S')
+            try:
+                listener.send(Message(ka_text), keep_alive_thread, ThreadType.GROUP)
+            except:
+                listener.debug_discord('Sending keep-alive message failed.')
         listener.setActiveStatus(False)
         uid = dbms.get_last_message_contact_id()
         listener.debug_discord('Done keep alive.')

@@ -1,3 +1,4 @@
+import fbchat
 import click
 import requests
 import json
@@ -5,8 +6,9 @@ import urllib
 import getpass
 import re
 
-from .utils import AESCipher
+from .utils import AESCipher, decrypt_cookies
 from .ua_getter import UAGetter
+from . import colors
 
 def get_int(prompt, default):
     while True:
@@ -15,13 +17,23 @@ def get_int(prompt, default):
         except:
             print('Invalid Input. Try again.')
 
+def get_mbasic_link(link:str):
+    try:
+        slash = link.index('/', 8)
+    except ValueError:
+        try:
+            slash = link.index('/', 4) # fb.me/hello, m.me/hello
+        except:
+            return
+    return 'https://mbasic.facebook.com' + link[slash:]
+
 class ConfigureUUS:
     def __init__(self, dbms):
         self.__dbms=dbms
     
     def id_u(self, res_dot_text):
         try:
-            return re.findall('<a href=\\"\\/.{1,}\\/about\\?lst=([^%\\"]+)', res_dot_text)[0]
+            return re.findall('<a href=\\"\\/.{1,}\\/about\\?lst=[^%]+%3A([^%\\"]+)', res_dot_text)[0]
         except:
             return None
 
@@ -165,7 +177,6 @@ class ConfigureUUS:
             print('Empty token.')
         self.__dbms.update_website_stuff('push_bullet', token)
     
-
     def configure_discord_all_msg(self):
         discord = self.__dbms.get_website_stuff('discord_all_message')
         if  discord != None:
@@ -191,6 +202,77 @@ class ConfigureUUS:
         self.__dbms.update_website_stuff('max_message_age', max_message_age)
         self.__dbms.update_website_stuff('cleanup_interval', cleanup_interval)
 
+    def configure_keep_alive_get_uids(self):
+        url0 = get_mbasic_link(input('Enter profile link of a friend: ').strip())
+        url1 = get_mbasic_link(input('Enter profile link of another friend: ').strip())
+        cookies = self.__dbms.get_website_stuff('cookie')
+        if not cookies:
+            print('Cookie is not configured. Unable to configure keep alive.')
+            return
+        if cookies.get('encrypted'):
+            cookies = decrypt_cookies(cookies.get('value'), getpass.getpass('Cookie is encrypted.\n Enter password: ').strip())
+            if not cookies:
+                return
+        else:
+            cookies = cookies.get('value')
+        uids = []
+        print('Please wait...')
+        for url in [url0, url1]:
+            try:
+                uids.append(self.id_u(requests.get(url, cookies=cookies).text).strip())
+            except:
+                print('Something went wrong. Please try again.')
+                return
+        return uids, cookies
+
+    def configure_keep_alive_get_thread_id(self, uids, cookies, inital_msg):
+        try:
+            client = fbchat.Client(None, None, session_cookies=cookies, user_agent=self.__dbms.get_website_stuff('user_agent'))
+            return client.createGroup(inital_msg, uids), client
+        except:
+            print('Something went wrong. Please try again.')
+
+    def configure_keep_alive(self):
+        print('To keep ununsend from getting disconnected, it needs to send messages regularly. To do that, you need to provide profile links of two of your friends. Ununsend will create a group with them and remove them from the group immediately. Then Ununend will use the group to send messages to keep it alive.')
+        c = click.confirm('Continue?', default=True)
+        initial_msg = 'An automated group.'
+        msg = input(f'Enter a group initial message (defaut: {initial_msg}): ').strip()
+        
+        if not c:
+            return
+            
+        uid_cookies = self.configure_keep_alive_get_uids()
+        
+        if not uid_cookies:
+            return
+        
+        uids, cookies = uid_cookies
+        initial_msg = msg if msg else initial_msg
+        thread_id_client = self.configure_keep_alive_get_thread_id(uids, cookies, initial_msg)
+        
+        if not thread_id_client:
+            return
+        thread_id, client = thread_id_client
+        self.__dbms.update_website_stuff('keep_alive_thread', thread_id)
+        print(f'{colors.green}Keep alive thread created successfully.{colors.end}')
+
+        rename = True
+        for i in uids:
+            try:
+                client.removeUserFromGroup(i, thread_id)
+            except:
+                rename = False
+                print(f'{colors.yellow}Warning:{colors.end} Unable to remove user id {i} from group. Please remove manually.')
+        if rename:
+            try:
+                client.changeThreadTitle('Ununsend Keep-Alive', thread_id, fbchat.ThreadType.GROUP)
+            except:
+                print(f'{colors.yellow}Warning:{colors.end} Failed to rename thread. Please rename manually.')
+        try:
+            client.muteThread(thread_id=thread_id)
+        except:
+            print(f'{colors.yellow}Warning:{colors.end} Failed to mute thread. Please mute manually.') 
+    
     def configure(self):
         c = click.confirm('Configure cookies?', default=True)
         if c:
@@ -198,6 +280,9 @@ class ConfigureUUS:
         c = click.confirm('Configure User-Agent (highly recommended)?', default=True)
         if c:
             self.configure_ua()
+        c = click.confirm('Configure keep alive (highly recommended)?', default=True)
+        if c:
+            self.configure_keep_alive()
         c = click.confirm('Configure discord unsent notification?', default=True)
         if c:
             self.configure_discord_hook()

@@ -1,10 +1,18 @@
 from argparse import ArgumentParser
+import sys
 
 from .dbms import DBMS
-from .utils import format_token_print
+from .utils import format_token_print, DaemonThread
 from .wsgi import website_main
 from .configure_uus import ConfigureUUS
 from . import __version__
+
+def flush_stdout():
+    import time
+    print('Starting stdout flush thread...')
+    while True:
+        time.sleep(600)
+        sys.stdout.flush()
 
 class UnunsendMain:
     def __init__(self):
@@ -15,6 +23,8 @@ class UnunsendMain:
     
     def run_server(self, active_network, print_info=[]):
         from .wsgi import website_main
+        if self.args.std_flush:
+            DaemonThread(flush_stdout).start()
         website_main(active_network, self.port, print_info, self.__dbms)        
 
     def new_token_and_run(self):
@@ -49,6 +59,7 @@ class UnunsendMain:
         serverGroup.add_argument('-R', '--run-all', dest='net_on', action='store_true', help='Run the listener with the server on all interfaces.')
         mainGroup.add_argument('-c', '--configure', dest='configure', action='store_true', help='Interactively configure the program.')
         parser.add_argument('-p', '--port', dest='port', default='5000', help='Port in which the website will run. Default: 5000')
+        parser.add_argument('--flush', action='store_true', dest='std_flush', help='Flush stdout each 15 minutes if the server is running.')
 
         args = parser.parse_args()
         self.args = args        
@@ -64,6 +75,8 @@ class UnunsendMain:
             self.run_server(False)
 
 def main():
+    if sys.version_info>=(3, 7):
+        sys.stdout.reconfigure(line_buffering=True)
     UnunsendMain().run_on_args()
 
 if __name__ == '__main__':

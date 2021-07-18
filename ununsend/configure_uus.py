@@ -272,7 +272,11 @@ class ConfigureUUS:
             client.muteThread(thread_id=thread_id)
         except:
             print(f'{colors.yellow}Warning:{colors.end} Failed to mute thread. Please mute manually.') 
-    
+        try:
+            client.changeGroupImageRemote('https://i.imgur.com/b0RhVfN.png',thread_id=thread_id)
+        except:
+            pass
+        
     def configure(self):
         c = click.confirm('Configure cookies?', default=True)
         if c:

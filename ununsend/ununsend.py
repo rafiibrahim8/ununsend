@@ -59,7 +59,7 @@ class UnunsendMain:
         serverGroup.add_argument('-R', '--run-all', dest='net_on', action='store_true', help='Run the listener with the server on all interfaces.')
         mainGroup.add_argument('-c', '--configure', dest='configure', action='store_true', help='Interactively configure the program.')
         parser.add_argument('-p', '--port', dest='port', default='5000', help='Port in which the website will run. Default: 5000')
-        parser.add_argument('--flush', action='store_true', dest='std_flush', help='Flush stdout each 15 minutes if the server is running.')
+        parser.add_argument('--flush', action='store_true', dest='std_flush', help='Flush stdout each 10 minutes if the server is running.')
 
         args = parser.parse_args()
         self.args = args        

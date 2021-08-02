@@ -50,7 +50,7 @@ def make_notification_text_from_obj(unsentMessage):
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
         ua = dbms.get_website_stuff('user_agent')
-        super().__init__(None, None, session_cookies=cookies, user_agent=ua)
+        super().__init__(None, None, session_cookies=cookies, user_agent=ua, auto_reconnect_after=20)
         self.__dbms = dbms
         self.__clients = clients
         self.__socket = socket

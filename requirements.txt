@@ -1,4 +1,4 @@
-fbchat @ https://github.com/rafiibrahim8/fbchat/archive/refs/heads/fb_dtsg_hotfix.zip
+fbchat @ https://github.com/rafiibrahim8/fbchat/archive/refs/heads/disconnect_fix.zip
 browser-cookie3
 Flask-SocketIO
 pycryptodome

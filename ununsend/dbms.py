@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, func, Integer, String, Column, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
-from traceback import print_exc
+from traceback import format_exc
 from hashlib import sha256
 from threading import Lock
 import random
@@ -121,6 +121,8 @@ class UnsentManager:
         self.__dbSession = dbSession
     
     def addMessage(self, message_id, timestamp, sender, message):
+        if self.queryMessage(message_id):
+            return # Message is sent twice by facebook. ignoring it.
         dbObject = Messages(message_id=message_id, timestamp=timestamp, sender=sender, message=json.dumps(message))
         self.__dbSession.add(dbObject)
         DBMS.commit_session(self.__dbSession)
@@ -128,6 +130,9 @@ class UnsentManager:
     def queryMessage(self, mid):
         return self.__dbSession.query(Messages).filter_by(message_id=mid).first()
     
+    def queryUnsentMessage(self, mid):
+        return self.__dbSession.query(UnsentMessage).filter_by(message_id=mid).first()
+
     def addContact(self, user_id, name):
         self.__dbSession.add(Contacts(user_id=user_id, name=name))
         DBMS.commit_session(self.__dbSession)
@@ -143,6 +148,8 @@ class UnsentManager:
         DBMS.commit_session(self.__dbSession)
 
     def addUnsentMessage(self, message_id, timestamp, timestamp_us, sender, sender_name, message, thread_id, thread_name):
+        if self.queryUnsentMessage(message_id):
+            return # already processed unsent. sent twice by facebook
         dbObject = UnsentMessage(message_id=message_id, timestamp=timestamp, timestamp_us=timestamp_us, sender=sender, sender_name=sender_name, message=message, thread_id=thread_id, thread_name=thread_name)
         self.__dbSession.add(dbObject)
         DBMS.commit_session(self.__dbSession)
@@ -234,5 +241,6 @@ class DBMS():
                 session.rollback()
                 DBMS._commit_session_impl(session, False)
             else:
-                utils.debug_discord('DB commit failed. Please check.')
-                print_exc()
+                fmt_exec = format_exc()
+                utils.debug_discord(f'DB commit failed. Reason:\n{fmt_exec}')
+                print(fmt_exec)

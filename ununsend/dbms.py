@@ -1,12 +1,18 @@
-from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy import create_engine, func, Integer, String, Column, Boolean
-import json
+from sqlalchemy.orm import declarative_base, sessionmaker
+from traceback import print_exc
+from hashlib import sha256
+from threading import Lock
 import random
 import string
-from hashlib import sha256
+import json
 import os
 
+from . import utils
+from . import __database_path as default_database_path
+
 Base = declarative_base()
+lock = Lock()
 
 class User:
     def __init__(self, user_id, authenticated=False, name=''):
@@ -90,7 +96,7 @@ class AuthManager:
             self.__dbSession.add(WebsiteStuffs(key='auth_tokens', value=json.dumps(tokens)))
         else:
             tokens_on_db.value = json.dumps(tokens)
-        self.__dbSession.commit()
+        DBMS.commit_session(self.__dbSession)
 
     def add_auth_token(self, token):
         tokens = self.get_auth_tokens()
@@ -117,14 +123,14 @@ class UnsentManager:
     def addMessage(self, message_id, timestamp, sender, message):
         dbObject = Messages(message_id=message_id, timestamp=timestamp, sender=sender, message=json.dumps(message))
         self.__dbSession.add(dbObject)
-        self.__dbSession.commit()
+        DBMS.commit_session(self.__dbSession)
     
     def queryMessage(self, mid):
         return self.__dbSession.query(Messages).filter_by(message_id=mid).first()
     
     def addContact(self, user_id, name):
         self.__dbSession.add(Contacts(user_id=user_id, name=name))
-        self.__dbSession.commit()
+        DBMS.commit_session(self.__dbSession)
 
     def queryContact(self, user_id):
         return self.__dbSession.query(Contacts).filter_by(user_id=user_id).first()
@@ -134,16 +140,16 @@ class UnsentManager:
 
     def addMessageThread(self, thread_id, name):
         self.__dbSession.add(MessageThreads(thread_id=thread_id, name=name))
-        self.__dbSession.commit()
+        DBMS.commit_session(self.__dbSession)
 
     def addUnsentMessage(self, message_id, timestamp, timestamp_us, sender, sender_name, message, thread_id, thread_name):
         dbObject = UnsentMessage(message_id=message_id, timestamp=timestamp, timestamp_us=timestamp_us, sender=sender, sender_name=sender_name, message=message, thread_id=thread_id, thread_name=thread_name)
         self.__dbSession.add(dbObject)
-        self.__dbSession.commit()
+        DBMS.commit_session(self.__dbSession)
     
     def clearUp(self, clear_until):
         self.__dbSession.query(Messages).filter(Messages.timestamp < clear_until).delete()
-        self.__dbSession.commit()
+        DBMS.commit_session(self.__dbSession)
     
     def getUnsentCount(self):
         return self.__dbSession.query(UnsentMessage).count() # https://stackoverflow.com/questions/10822635/get-the-number-of-rows-in-table-using-sqlalchemy
@@ -169,7 +175,7 @@ class UnsentManager:
         return self.__dbSession.query(UnsentMessage).all()
 
 class DBMS():
-    def __init__(self, database_path='~/.config/ununsend/database.sqlite'):
+    def __init__(self, database_path=default_database_path):
         db_path = 'sqlite:///' + os.path.expanduser(database_path)
         engine = create_engine(db_path, connect_args={"check_same_thread": False})
         Base.metadata.create_all(engine)
@@ -186,7 +192,7 @@ class DBMS():
         if not uid:
             uid = ''.join([random.choice(string.ascii_lowercase) for _ in range(16)])
         self.dbSession.add(WebsiteUsers(user_id=uid, is_authenticated=authenticated, user_name=name))
-        self.dbSession.commit()
+        DBMS.commit_session(self.dbSession)
         return self.get_website_user(uid)
     
     def update_website_stuff(self, key, value):
@@ -195,7 +201,7 @@ class DBMS():
             self.dbSession.add(WebsiteStuffs(key=key, value=json.dumps(value)))
         else:
             stuff.value = json.dumps(value)
-        self.dbSession.commit()
+        DBMS.commit_session(self.dbSession)
 
     def get_website_stuff(self, key):
         stuff = self.dbSession.query(WebsiteStuffs).filter_by(key=key).first()
@@ -213,3 +219,20 @@ class DBMS():
         self.update_website_stuff('flask_secret', secret)
         return secret
 
+    @staticmethod
+    def commit_session(session):
+        with lock:
+            DBMS._commit_session_impl(session)
+            
+    
+    @staticmethod
+    def _commit_session_impl(session, retry=True):
+        try:
+            session.commit()
+        except:
+            if retry:
+                session.rollback()
+                DBMS._commit_session_impl(session, False)
+            else:
+                utils.debug_discord('DB commit failed. Please check.')
+                print_exc()

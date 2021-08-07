@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import psutil
@@ -9,6 +10,9 @@ from threading import Thread
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+
+from . import __debug_discord
+from . import colors
 
 # Modified from https://stackoverflow.com/questions/12524994/encrypt-decrypt-using-pycrypto-aes-256 by mnothic
 class AESCipher(object):
@@ -101,3 +105,14 @@ def decrypt_cookies(cookie, password):
     except:
         print('Something went wrong.')
         print('Check your password and try again.')
+
+def debug_discord(message):
+        path = os.path.expanduser(__debug_discord)
+        if not os.path.isfile(path):
+            return
+        with open(path, 'r') as f:
+            debug_hook = f.read().strip()
+        try:
+            requests.post(debug_hook, json={'content': message})
+        except:
+            print(f'{colors.red}Debug Discord Failed.\nMessage: {message}{colors.end}')

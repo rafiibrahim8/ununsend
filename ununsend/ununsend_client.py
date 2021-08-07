@@ -8,7 +8,6 @@ import datetime
 import time
 
 from . import utils
-from . import colors
 
 class BDT(datetime.tzinfo):
     def utcoffset(self, dt):
@@ -50,7 +49,7 @@ def make_notification_text_from_obj(unsentMessage):
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
         ua = dbms.get_website_stuff('user_agent')
-        super().__init__(None, None, session_cookies=cookies, user_agent=ua, auto_reconnect_after=20)
+        super().__init__(None, None, session_cookies=cookies, user_agent=ua, auto_reconnect_after=120)
         self.__dbms = dbms
         self.__clients = clients
         self.__socket = socket
@@ -83,15 +82,6 @@ class Listener(Client):
     def __updateOnWebsite(self, notif_text):
         for i in self.__clients:
             utils.update_on_website(self.__socket, notif_text, i)
-
-    def debug_discord(self, message):
-        debug_hook = self.__dbms.get_website_stuff('debug_discord')
-        if not debug_hook:
-            return
-        try:
-            requests.post(debug_hook, json={'content': message})
-        except:
-            print(f'{colors.red}Debug Discord: {message}{colors.end}')
 
     def __send_notification_discord(self, notif_text):
         discord_hook = self.__dbms.get_website_stuff('discord')
@@ -203,10 +193,10 @@ def keep_alive(listener, dbms):
             try:
                 listener.send(Message(ka_text), keep_alive_thread, ThreadType.GROUP)
             except:
-                listener.debug_discord('Sending keep-alive message failed.')
+                utils.debug_discord('Sending keep-alive message failed.')
         listener.setActiveStatus(False)
         uid = dbms.get_last_message_contact_id()
-        listener.debug_discord('Done keep alive.')
+        utils.debug_discord('Done keep alive.')
         if uid:
             try:
                 listener.getUserActiveStatus(uid)

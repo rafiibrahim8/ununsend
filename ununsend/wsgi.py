@@ -83,6 +83,7 @@ def auth_user():
     return render_template('afterauth.html')
 
 def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None):
+    utils.debug_discord(f'Starting server at {int(time.time())}')
     global dbms
     if dbms_parm == None:
         dbms= DBMS()
@@ -113,8 +114,8 @@ def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None)
         fbchatThread = utils.DaemonThread(ununsend_client.main, listener, ALWAYS_ACTIVE)
         fbchatThread.start()
         
-        pingThread = utils.DaemonThread(ununsend_client.keep_alive, listener, dbms)
-        pingThread.start()
+        # pingThread = utils.DaemonThread(ununsend_client.keep_alive, listener, dbms)
+        # pingThread.start()
 
         cleanup_interval = dbms.get_website_stuff('cleanup_interval') or CLEANUP_INTERVAL
         max_message_age = dbms.get_website_stuff('max_message_age') or MAX_MESSAGE_AGE

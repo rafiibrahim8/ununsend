@@ -47,10 +47,11 @@ class WebsiteUsers(Base):
 class Messages(Base):
     __tablename__ = 'messages'
 
-    message_id = Column(String, primary_key=True)
+    record_identifier = Column(String, primary_key=True)
+    message_id = Column(String)
     timestamp = Column(Integer)
     sender = Column(String)
-    message = Column(String) 
+    message = Column(String)
 
 class UnsentMessage(Base):
     __tablename__ = 'unsent_messages'
@@ -121,9 +122,8 @@ class UnsentManager:
         self.__dbSession = dbSession
     
     def addMessage(self, message_id, timestamp, sender, message):
-        if self.queryMessage(message_id):
-            return # Message is sent twice by facebook. ignoring it.
-        dbObject = Messages(message_id=message_id, timestamp=timestamp, sender=sender, message=json.dumps(message))
+        record_identifier = sha256(os.urandom(1024)).hexdigest()
+        dbObject = Messages(record_identifier=record_identifier, message_id=message_id, timestamp=timestamp, sender=sender, message=json.dumps(message))
         self.__dbSession.add(dbObject)
         DBMS.commit_session(self.__dbSession)
     

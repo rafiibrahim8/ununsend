@@ -174,8 +174,7 @@ class Listener(Client):
         threadName = self.__resolveMessageThreadName(thread_id)
         self.__dbms.unsentManager.addUnsentMessage(message_id=mid, timestamp=res.timestamp, timestamp_us=ts, sender=author_id, sender_name=userName, message=res.message, thread_id=thread_id, thread_name=threadName)
 
-        notif_thread_name = None if author_id==thread_id else threadName        
-        # send_notification(userName, res.message, res.timestamp, ts)
+        notif_thread_name = None if author_id==thread_id else threadName
         notif_text = make_notification_text(userName, res.message, res.timestamp, ts, thread_name=notif_thread_name)
         self.__send_notifications(notif_text)
         self.__updateOnWebsite(notif_text)

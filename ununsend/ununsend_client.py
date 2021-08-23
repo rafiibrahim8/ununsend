@@ -49,7 +49,7 @@ def make_notification_text_from_obj(unsentMessage):
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
         ua = dbms.get_website_stuff('user_agent')
-        super().__init__(None, None, session_cookies=cookies, user_agent=ua, auto_reconnect_after=120)
+        super().__init__(None, None, session_cookies=cookies, user_agent=ua, auto_reconnect_after=30)
         self.__dbms = dbms
         self.__clients = clients
         self.__socket = socket
@@ -180,7 +180,7 @@ class Listener(Client):
         self.__updateOnWebsite(notif_text)
 
 def keep_alive(listener, dbms):
-    ping_sleep_time = 6 # hours
+    ping_sleep_time = 4 # hours
     ping_active_time = 200 #sec
     while True:
         time.sleep(ping_sleep_time * 3600 - ping_active_time)
@@ -195,7 +195,6 @@ def keep_alive(listener, dbms):
                 utils.debug_discord('Sending keep-alive message failed.')
         listener.setActiveStatus(False)
         uid = dbms.get_last_message_contact_id()
-        utils.debug_discord('Done keep alive.')
         if uid:
             try:
                 listener.getUserActiveStatus(uid)

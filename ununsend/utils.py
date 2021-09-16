@@ -1,14 +1,18 @@
+import os
 import time
 import json
 import psutil
-import socket
-import threading
 import requests
 import click
 import base64
+from socket import AF_INET
+from threading import Thread
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
+
+from . import __debug_discord
+from . import colors
 
 # Modified from https://stackoverflow.com/questions/12524994/encrypt-decrypt-using-pycrypto-aes-256 by mnothic
 class AESCipher(object):
@@ -35,6 +39,11 @@ class AESCipher(object):
     def _unpad(s):
         return s[:-ord(s[len(s)-1:])]
 
+class DaemonThread(Thread):
+    def __init__(self, func, *args):
+        super().__init__(target=func, args=tuple(args))
+        self.daemon = True
+
 def clear_up(dbms, cleanupInterval, maxMessageAge):
     while True:
         time.sleep(cleanupInterval * 3600)
@@ -56,7 +65,7 @@ def update_on_website(socket, notif_texts, client=None):
 def get_if_addrs():
     addrs = []
     for _, v in psutil.net_if_addrs().items():
-        if v[0].family == socket.AF_INET:
+        if v[0].family == AF_INET:
             addrs.append(v[0].address)
     return addrs  
 
@@ -86,7 +95,7 @@ def print_with_delay(texts, delay):
         time.sleep(_delay)
         for i in _texts:
             print(i)
-    threading.Thread(target=print_with_delay_impl, args=(texts, delay)).start()
+    DaemonThread(print_with_delay_impl, texts, delay).start()
 
 def decrypt_cookies(cookie, password):
     password = 'UnUnsend' + password
@@ -96,3 +105,14 @@ def decrypt_cookies(cookie, password):
     except:
         print('Something went wrong.')
         print('Check your password and try again.')
+
+def debug_discord(message):
+        path = os.path.expanduser(__debug_discord)
+        if not os.path.isfile(path):
+            return
+        with open(path, 'r') as f:
+            debug_hook = f.read().strip()
+        try:
+            requests.post(debug_hook, json={'content': message})
+        except:
+            print(f'{colors.red}Debug Discord Failed.\nMessage: {message}{colors.end}')

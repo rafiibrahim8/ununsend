@@ -7,11 +7,11 @@ from fbchat import FBchatUserError
 import time
 import string
 import random
-import threading
 import json
 import functools
 import getpass
 import os
+import sys
 
 from . import ununsend_client
 from .dbms import DBMS
@@ -21,6 +21,10 @@ from . import __static_path, __template_path
 ALWAYS_ACTIVE = False
 CLEANUP_INTERVAL = 4 # Hours
 MAX_MESSAGE_AGE = 36 # Hours
+
+# Disable Flask.run() warnings. From: https://gist.github.com/jerblack/735b9953ba1ab6234abb43174210d356
+flask_cli = sys.modules['flask.cli']
+flask_cli.show_server_banner = lambda *x: None
 
 app = Flask(__name__, template_folder=os.path.expanduser(__template_path), static_folder=os.path.expanduser(__static_path))
 login_manager = LoginManager(app)
@@ -79,6 +83,7 @@ def auth_user():
     return render_template('afterauth.html')
 
 def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None):
+    utils.debug_discord(f'Starting server at {int(time.time())}')
     global dbms
     if dbms_parm == None:
         dbms= DBMS()
@@ -106,12 +111,16 @@ def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None)
             print('Failed to login. Please check if the cookie has expired then try again.')
             return
         
-        fbchatThread = threading.Thread(target=ununsend_client.main, args=(listener, ALWAYS_ACTIVE))
+        fbchatThread = utils.DaemonThread(ununsend_client.main, listener, ALWAYS_ACTIVE)
         fbchatThread.start()
         
+        pingThread = utils.DaemonThread(ununsend_client.keep_alive, listener, dbms)
+        pingThread.start()
+
         cleanup_interval = dbms.get_website_stuff('cleanup_interval') or CLEANUP_INTERVAL
         max_message_age = dbms.get_website_stuff('max_message_age') or MAX_MESSAGE_AGE
-        clearUpThread = threading.Thread(target=utils.clear_up, args=(dbms, cleanup_interval, max_message_age))
+        
+        clearUpThread = utils.DaemonThread(utils.clear_up, dbms, cleanup_interval, max_message_age)
         clearUpThread.start()
     
     if active_network:

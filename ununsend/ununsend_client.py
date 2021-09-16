@@ -3,8 +3,8 @@ import requests
 import os
 import fbchat.models as models
 from fbchat import Client, FBchatException
+from fbchat import Message, ThreadType
 import datetime
-import threading
 import time
 
 from . import utils
@@ -33,12 +33,13 @@ def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent
         for i, attachment in enumerate(message['attachments'], start=1):
             notif_text += 'Attachment({}): {}\n'.format(i, attachment)
 
-    sent_at = datetime.datetime.fromtimestamp(sent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
-    notif_text += f'Sent Time: {sent_at}\n' # Keed this extra newline as all_message notification come very quickly it need spacing
-    if unsent_at != None:
+    if notif_type == 'unsent':
+        sent_at = datetime.datetime.fromtimestamp(sent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
+        notif_text += f'Sent Time: {sent_at}\n'
         unsent_at = datetime.datetime.fromtimestamp(unsent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
         notif_text += f'Unsent Time: {unsent_at}'
-
+    else:
+        notif_text += chr(0x200b)
     return notif_text
 
 def make_notification_text_from_obj(unsentMessage):
@@ -47,7 +48,8 @@ def make_notification_text_from_obj(unsentMessage):
 
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
-        super().__init__(None, None, session_cookies=cookies)
+        ua = dbms.get_website_stuff('user_agent')
+        super().__init__(None, None, session_cookies=cookies, user_agent=ua, auto_reconnect_after=30)
         self.__dbms = dbms
         self.__clients = clients
         self.__socket = socket
@@ -172,12 +174,32 @@ class Listener(Client):
         threadName = self.__resolveMessageThreadName(thread_id)
         self.__dbms.unsentManager.addUnsentMessage(message_id=mid, timestamp=res.timestamp, timestamp_us=ts, sender=author_id, sender_name=userName, message=res.message, thread_id=thread_id, thread_name=threadName)
 
-        notif_thread_name = None if author_id==thread_id else threadName        
-        # send_notification(userName, res.message, res.timestamp, ts)
+        notif_thread_name = None if author_id==thread_id else threadName
         notif_text = make_notification_text(userName, res.message, res.timestamp, ts, thread_name=notif_thread_name)
         self.__send_notifications(notif_text)
         self.__updateOnWebsite(notif_text)
 
+def keep_alive(listener, dbms):
+    ping_sleep_time = 4 # hours
+    ping_active_time = 200 #sec
+    while True:
+        time.sleep(ping_sleep_time * 3600 - ping_active_time)
+        listener.setActiveStatus(True)
+        time.sleep(ping_active_time)
+        keep_alive_thread = dbms.get_website_stuff('keep_alive_thread')
+        if keep_alive_thread:
+            ka_text = 'Ununsend keep-alive at ' + datetime.datetime.now(BDT()).strftime('%Y-%m-%d %H:%M:%S')
+            try:
+                listener.send(Message(ka_text), keep_alive_thread, ThreadType.GROUP)
+            except:
+                utils.debug_discord('Sending keep-alive message failed.')
+        listener.setActiveStatus(False)
+        uid = dbms.get_last_message_contact_id()
+        if uid:
+            try:
+                listener.getUserActiveStatus(uid)
+            except:
+                pass
 
 def main(listener, always_active=False):
     listener.listen(always_active)

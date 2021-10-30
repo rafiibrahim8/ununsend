@@ -2,7 +2,7 @@ import json
 import requests
 import os
 import fbchat.models as models
-from fbchat import Client, FBchatException
+from fbchat import Client
 from fbchat import Message, ThreadType
 import datetime
 import time

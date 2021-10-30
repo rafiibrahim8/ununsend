@@ -1,5 +1,5 @@
-__version__ = '0.0.6'
-VERSION_CODE = 2
+__version__ = '0.0.7'
+VERSION_CODE = 3
 __static_path = '~/.config/ununsend/static/'
 __template_path = '~/.config/ununsend/templates/'
 __database_path = '~/.config/ununsend/database.sqlite'

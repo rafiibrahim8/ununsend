@@ -1,6 +1,6 @@
 import json
 import requests
-import os
+import textwrap
 import fbchat.models as models
 from fbchat import Client
 from fbchat import Message, ThreadType
@@ -25,13 +25,14 @@ def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent
     if thread_name:
         notif_text += f' on thread {thread_name}'
     notif_text += '.\n'
-    if message['text']:
-        notif_text += 'Text: {}\n'.format(message['text'])
-    if message['sticker']:
-        notif_text += 'Sticker: {}\n'.format(message['sticker'])
+    
     if message['attachments']:
         for i, attachment in enumerate(message['attachments'], start=1):
             notif_text += 'Attachment({}): {}\n'.format(i, attachment)
+    if message['sticker']:
+        notif_text += 'Sticker: {}\n'.format(message['sticker'])
+    if message['text']:
+        notif_text += 'Text: {}\n'.format(message['text'])
 
     if notif_type == 'unsent':
         sent_at = datetime.datetime.fromtimestamp(sent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
@@ -82,24 +83,43 @@ class Listener(Client):
     def __updateOnWebsite(self, notif_text):
         for i in self.__clients:
             utils.update_on_website(self.__socket, notif_text, i)
+    
+    @staticmethod
+    def __send_to_discord(hook_url, text):
+        discord_max_char = 2000
+        saparator = '[...]'
+        if len(text) < (discord_max_char - 50):
+            requests.post(hook_url, json={'content': text})
+            return
+        texts = textwrap.wrap(text, width=discord_max_char-50, replace_whitespace=False, expand_tabs=False, break_on_hyphens=False)
+        for i, t in enumerate(texts):
+            if i == 0:
+                t = t + saparator
+            elif i == (len(texts) - 1):
+                t = saparator + t
+            else:
+                t = saparator + t + saparator
+            requests.post(hook_url, json={'content': t})
 
     def __send_notification_discord(self, notif_text):
         discord_hook = self.__dbms.get_website_stuff('discord')
         if not discord_hook:
             return
         try:
-            requests.post(discord_hook, json={'content': notif_text})
+            self.__send_to_discord(discord_hook, notif_text)
         except:
-            pass
+            print('Warning: Failed to send discord unsend notification:')
+            print(notif_text)
     
     def __send_all_message_discord(self, message_text:str):
         discord_hook = self.__dbms.get_website_stuff('discord_all_message')
         if not discord_hook:
             return
         try:
-            requests.post(discord_hook, json={'content': message_text})
+            self.__send_to_discord(discord_hook, message_text)
         except:
-            pass
+            print('Warning: Failed to send discord all message:')
+            print(message_text)
 
     def __send_notification_pb(self, notif_text):
         access_token = self.__dbms.get_website_stuff('push_bullet')

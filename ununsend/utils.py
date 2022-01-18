@@ -6,13 +6,14 @@ import psutil
 import requests
 import datetime
 import base64
+from bs4 import BeautifulSoup
 from socket import AF_INET
 from threading import Thread
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 
-from . import __debug_discord
+from . import __debug_discord as debug_discord_file_path
 from . import colors
 
 # Modified from https://stackoverflow.com/questions/12524994/encrypt-decrypt-using-pycrypto-aes-256 by mnothic
@@ -107,9 +108,23 @@ def decrypt_cookies(cookie, password):
         print('Something went wrong.')
         print('Check your password and try again.')
 
+def opengraph_lookup(url):
+    og_meta = dict()
+    try:
+        soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+    except:
+        return og_meta
+    to_find = ['title', 'description', 'image']
+    for i in to_find:
+        t = soup.find('meta', property=f'og:{i}')
+        if t:
+            og_meta[i] = t.get('content')
+    return og_meta
+
+
 class DebugDiscord:
     __instance = None
-    def __new__(cls, tz=None, time_format='%Y-%m-%d %H:%M'):
+    def __new__(cls, tz=None, time_format='%Y-%m-%d %H:%M:%S'):
         if cls.__instance is None:
             cls.__instance = super().__new__(cls)
             cls.__instance.__init(tz, time_format)
@@ -119,7 +134,7 @@ class DebugDiscord:
 
     
     def __init(self, tz, time_format):
-        path = os.path.expanduser(__debug_discord)
+        path = os.path.expanduser(debug_discord_file_path)
         if not os.path.isfile(path):
             self.__is_debug = False
             return
@@ -176,6 +191,8 @@ class UserTZ:
         if cls.__tz is None:
             return datetime.timezone.utc
         return cls.__tz
+
+
 
 # def debug_discord(message):
 #         path = os.path.expanduser(__debug_discord)

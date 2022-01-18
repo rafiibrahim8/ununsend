@@ -1,5 +1,6 @@
 fbchat @ https://github.com/rafiibrahim8/fbchat/archive/refs/heads/maintenance.zip
 browser-cookie3
+beautifulsoup4
 Flask-SocketIO
 pycryptodome
 Flask-Login

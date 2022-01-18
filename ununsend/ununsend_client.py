@@ -55,21 +55,34 @@ class Listener(Client):
         for attachment in attachments:
             if isinstance(attachment, models.ImageAttachment):
                 if attachment.is_animated:
-                    resolved.append(attachment.animated_preview_url)
+                    resolved.append({'type': 'image', 'url': attachment.animated_preview_url})
+                    #resolved.append(attachment.animated_preview_url)
                 else:
-                    resolved.append(attachment.large_preview_url)
+                    resolved.append({'type': 'image', 'url': attachment.large_preview_url})
+                    #resolved.append(attachment.large_preview_url)
             
-            elif isinstance(attachment, (models.AudioAttachment, models.FileAttachment, models.ShareAttachment)):
-                resolved.append(attachment.url)
+            elif isinstance(attachment, models.AudioAttachment):
+                resolved.append({'type': 'audio', 'url': attachment.url})
+                #resolved.append(attachment.url)
+
+            elif isinstance(attachment, models.FileAttachment):
+                resolved.append({'type': 'file', 'url': attachment.url})
+                #resolved.append(attachment.url)
+            
+            elif isinstance(attachment, models.ShareAttachment):
+                resolved.append({'type': 'share', 'url': attachment.url})
+                #resolved.append(attachment.url)
 
             elif isinstance(attachment, models.VideoAttachment):
-                resolved.append(attachment.preview_url)
+                resolved.append({'type': 'video', 'url': attachment.preview_url})
+                #resolved.append(attachment.preview_url)
             
             elif isinstance(attachment, (models.LocationAttachment, models.LiveLocationAttachment)):
-                resolved.append(f'Latitude: {attachment.latitude}, Longitude: {attachment.longitude}')
-            
+                resolved.append({'type': 'location', 'url': f'https://www.google.com/maps?q={attachment.latitude},{attachment.latitude}', 'lat': attachment.latitude, 'long': attachment.longitude})
+                #resolved.append(f'Latitude: {attachment.latitude}, Longitude: {attachment.longitude}')
             else:
                 print('Unknown attachment type.')
+        print(resolved, end='\n\n\n')
         return resolved
 
     def __updateOnWebsite(self, notif_text):
@@ -112,24 +125,6 @@ class Listener(Client):
         except:
             print('Warning: Failed to send discord all message:')
             print(message_text)
-
-    def __send_notification_pb(self, notif_text):
-        access_token = self.__dbms.get_website_stuff('push_bullet')
-        if not access_token:
-            return
-        notif_text = [i.strip() for i in notif_text.split('\n') if i.strip()]
-        jdata = {
-        'type': 'note',
-        'title': notif_text[0],
-        'body': '\n'.join(notif_text[1:])
-        }
-        try:
-            requests.post('https://api.pushbullet.com/v2/pushes', headers={'Access-Token': access_token}, json=jdata)
-        except:
-            pass
-    def __send_notifications(self, notif_text):
-        self.__send_notification_discord(notif_text)
-        self.__send_notification_pb(notif_text)
 
     def __resolveUserName(self, uid):
         user = self.__dbms.unsentManager.queryContact(uid)
@@ -188,7 +183,7 @@ class Listener(Client):
 
         notif_thread_name = None if author_id==thread_id else threadName
         notif_text = make_notification_text(userName, res.message, res.timestamp, ts, thread_name=notif_thread_name)
-        self.__send_notifications(notif_text)
+        self.__send_notification_discord(notif_text)
         self.__updateOnWebsite(notif_text)
 
 def keep_alive(listener, dbms):

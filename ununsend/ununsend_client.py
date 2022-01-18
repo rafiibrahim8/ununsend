@@ -9,21 +9,13 @@ import time
 
 from . import utils
 
-class BDT(datetime.tzinfo):
-    def utcoffset(self, dt):
-        return datetime.timedelta(hours=6)
-    def dst(self, dt):
-        return datetime.timedelta(hours=6)
-    def tzname(self, dt):
-        return 'Bangladesh Standard Time'
-
 def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent', thread_name=None):
     if isinstance(message, str):
         message = json.loads(message)
 
-    notif_text = f'{name} {notif_type} a message'
+    notif_text = f'**{name}** *{notif_type}* a message'
     if thread_name:
-        notif_text += f' on thread {thread_name}'
+        notif_text += f' on thread *{thread_name}*'
     notif_text += '.\n'
     
     if message['attachments']:
@@ -35,9 +27,9 @@ def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent
         notif_text += 'Text: {}\n'.format(message['text'])
 
     if notif_type == 'unsent':
-        sent_at = datetime.datetime.fromtimestamp(sent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
+        sent_at = datetime.datetime.fromtimestamp(sent_at/1000, utils.UserTZ.get_tz()).strftime('%Y-%m-%d %H:%M:%S')
         notif_text += f'Sent Time: {sent_at}\n'
-        unsent_at = datetime.datetime.fromtimestamp(unsent_at/1000, BDT()).strftime('%Y-%m-%d %H:%M:%S')
+        unsent_at = datetime.datetime.fromtimestamp(unsent_at/1000, utils.UserTZ.get_tz()).strftime('%Y-%m-%d %H:%M:%S')
         notif_text += f'Unsent Time: {unsent_at}'
     else:
         notif_text += chr(0x200b)
@@ -208,11 +200,11 @@ def keep_alive(listener, dbms):
         time.sleep(ping_active_time)
         keep_alive_thread = dbms.get_website_stuff('keep_alive_thread')
         if keep_alive_thread:
-            ka_text = 'Ununsend keep-alive at ' + datetime.datetime.now(BDT()).strftime('%Y-%m-%d %H:%M:%S')
+            ka_text = 'Ununsend keep-alive at ' + datetime.datetime.now(utils.UserTZ.get_tz()).strftime('%Y-%m-%d %H:%M:%S')
             try:
                 listener.send(Message(ka_text), keep_alive_thread, ThreadType.GROUP)
             except:
-                utils.debug_discord('Sending keep-alive message failed.')
+                utils.DebugDiscord().error('Sending keep-alive message failed.')
         listener.setActiveStatus(False)
         uid = dbms.get_last_message_contact_id()
         if uid:

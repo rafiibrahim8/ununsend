@@ -3,10 +3,6 @@ from flask import request as flask_request
 from flask_socketio import SocketIO
 from flask_login import LoginManager
 from flask_login import login_user, login_required, current_user
-from fbchat import FBchatUserError
-import time
-import string
-import random
 import json
 import functools
 import getpass
@@ -83,13 +79,17 @@ def auth_user():
     return render_template('afterauth.html')
 
 def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None):
-    utils.debug_discord(f'Starting server at {int(time.time())}')
     global dbms
     if dbms_parm == None:
         dbms= DBMS()
     else:
         dbms = dbms_parm
     
+    tz = dbms.get_website_stuff('timezone')
+    utils.UserTZ.set_tz(tz)
+    debug_discord = utils.DebugDiscord(tz)
+    debug_discord.info('Starting Ununsend server.')
+
     app.config['SECRET_KEY'] = dbms.get_flask_secret()
     run_listener = True
     

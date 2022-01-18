@@ -242,5 +242,5 @@ class DBMS():
                 DBMS._commit_session_impl(session, False)
             else:
                 fmt_exec = format_exc()
-                utils.debug_discord(f'DB commit failed. Reason:\n{fmt_exec}')
+                utils.DebugDiscord().error(f'DB commit failed. Reason:\n{fmt_exec}')
                 print(fmt_exec)

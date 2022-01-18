@@ -1,9 +1,10 @@
 import os
 import time
+import pytz
 import json
 import psutil
 import requests
-import click
+import datetime
 import base64
 from socket import AF_INET
 from threading import Thread
@@ -106,13 +107,83 @@ def decrypt_cookies(cookie, password):
         print('Something went wrong.')
         print('Check your password and try again.')
 
-def debug_discord(message):
+class DebugDiscord:
+    __instance = None
+    def __new__(cls, tz=None, time_format='%Y-%m-%d %H:%M'):
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls)
+            cls.__instance.__init(tz, time_format)
+        else:
+            cls.__instance.__partial_init(tz, time_format)
+        return cls.__instance
+
+    
+    def __init(self, tz, time_format):
         path = os.path.expanduser(__debug_discord)
         if not os.path.isfile(path):
+            self.__is_debug = False
             return
+        
         with open(path, 'r') as f:
-            debug_hook = f.read().strip()
+            self.__debug_hook = f.read().strip()
+
+        if not tz:
+            tz = 'UTC'
+        self.__timezone = tz
+        self.__timezone_dt = pytz.timezone(tz)
+        self.__time_fmt = time_format
+        self.__is_debug = True
+    
+    def __partial_init(self, tz, time_format):
+        if not self.__is_debug:
+            return
+        
+        if self.__timezone != tz and tz:
+            self.__timezone = tz
+            self.__timezone_dt = pytz.timezone(tz)
+        if self.__time_fmt != time_format and time_format:
+            self.__time_fmt = time_format
+
+    def __send_text_hook(self, text, with_time):
+        if not self.__is_debug:
+            return
+        if with_time:
+            fmt_time = datetime.datetime.now(self.__timezone_dt).strftime(self.__time_fmt)
+            text = f'[{fmt_time}]{text}'
         try:
-            requests.post(debug_hook, json={'content': message})
+            requests.post(self.__debug_hook, json={'content': text})
         except:
-            print(f'{colors.red}Debug Discord Failed.\nMessage: {message}{colors.end}')
+            print(f'{colors.red}Debug Discord: {text}{colors.end}')
+
+    def info(self, message, with_time=True):
+        self.__send_text_hook(f'[INFO] {message}', with_time)
+
+    def error(self, message, with_time=True):
+        self.__send_text_hook(f'[ERROR] {message}', with_time)
+
+class UserTZ:
+    __tz = None
+    
+    @classmethod
+    def set_tz(cls, tz):
+        if isinstance(tz, str):
+            cls.__tz = pytz.timezone(tz)
+        else:
+            cls.__tz = tz
+    
+    @classmethod
+    def get_tz(cls):
+        if cls.__tz is None:
+            return datetime.timezone.utc
+        return cls.__tz
+
+# def debug_discord(message):
+#         path = os.path.expanduser(__debug_discord)
+#         if not os.path.isfile(path):
+#             return
+#         with open(path, 'r') as f:
+#             debug_hook = f.read().strip()
+#         try:
+#             requests.post(debug_hook, json={'content': message})
+#         except:
+#             print(f'{colors.red}Debug Discord Failed.\nMessage: {message}{colors.end}')

@@ -11,6 +11,7 @@ import sys
 
 from . import ununsend_client
 from .dbms import DBMS
+from .notification_sender import WebsiteUpdater
 from . import utils
 from . import __static_path, __template_path
 
@@ -58,8 +59,8 @@ def handle_client_connected(json_data):
         return
     
     initial_message = dbms.unsentManager.get_all() # should not case a problem as unsent messages are not that often
-    notif_texts = [ununsend_client.make_notification_text_from_obj(i) for i in initial_message]
-    utils.update_on_website(socketio, notif_texts, flask_request.sid)
+    notif_texts = [WebsiteUpdater.make_website_notif_from_unsend_obj(i) for i in initial_message]
+    WebsiteUpdater.update_on_website_bulk(socketio, notif_texts, flask_request.sid)
 
 @app.route('/')
 @login_required

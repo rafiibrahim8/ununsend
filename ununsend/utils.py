@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import pytz
 import json
@@ -6,6 +7,7 @@ import psutil
 import requests
 import datetime
 import base64
+from urllib.parse import unquote
 from bs4 import BeautifulSoup
 from socket import AF_INET
 from threading import Thread
@@ -110,6 +112,8 @@ def decrypt_cookies(cookie, password):
 
 def opengraph_lookup(url):
     og_meta = dict()
+    if url.startswith('https://l.facebook.com'):
+        url = unquote(re.findall('u=([^&]+)',url)[0])
     try:
         soup = BeautifulSoup(requests.get(url).text, 'html.parser')
     except:
@@ -120,7 +124,6 @@ def opengraph_lookup(url):
         if t:
             og_meta[i] = t.get('content')
     return og_meta
-
 
 class DebugDiscord:
     __instance = None

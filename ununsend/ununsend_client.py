@@ -8,47 +8,18 @@ import datetime
 import time
 
 from . import utils
-
-def make_notification_text(name, message, sent_at, unsent_at, notif_type='unsent', thread_name=None):
-    if isinstance(message, str):
-        message = json.loads(message)
-
-    notif_text = f'**{name}** *{notif_type}* a message'
-    if thread_name:
-        notif_text += f' on thread *{thread_name}*'
-    notif_text += '.\n'
-    
-    if message['attachments']:
-        for i, attachment in enumerate(message['attachments'], start=1):
-            notif_text += 'Attachment({}): {}\n'.format(i, attachment)
-    if message['sticker']:
-        notif_text += 'Sticker: {}\n'.format(message['sticker'])
-    if message['text']:
-        notif_text += 'Text: {}\n'.format(message['text'])
-
-    if notif_type == 'unsent':
-        sent_at = datetime.datetime.fromtimestamp(sent_at/1000, utils.UserTZ.get_tz()).strftime('%Y-%m-%d %H:%M:%S')
-        notif_text += f'Sent Time: {sent_at}\n'
-        unsent_at = datetime.datetime.fromtimestamp(unsent_at/1000, utils.UserTZ.get_tz()).strftime('%Y-%m-%d %H:%M:%S')
-        notif_text += f'Unsent Time: {unsent_at}'
-    else:
-        notif_text += chr(0x200b)
-    return notif_text
-
-def make_notification_text_from_obj(unsentMessage):
-    notif_thread_name = None if unsentMessage.sender==unsentMessage.thread_id else unsentMessage.thread_name
-    return make_notification_text(unsentMessage.sender_name, unsentMessage.message, unsentMessage.timestamp, unsentMessage.timestamp_us, thread_name=notif_thread_name)
+from .notification_sender import WebsiteUpdater, DiscordNotificationSender
 
 class Listener(Client):
     def __init__(self, cookies, dbms, clients, socket):
         ua = dbms.get_website_stuff('user_agent')
         super().__init__(None, None, session_cookies=cookies, user_agent=ua, auto_reconnect_after=30)
         self.__dbms = dbms
-        self.__clients = clients
-        self.__socket = socket
+        self.__website_updater = WebsiteUpdater(socket, clients)
+        self.__discord_ns = DiscordNotificationSender(dbms.get_website_stuff('discord_all_message'), dbms.get_website_stuff('discord'))
 
     @staticmethod
-    def __resolveAttachmentx(attachments):
+    def __resolve_attachments(attachments):
         if attachments == []:
             return
         resolved = []
@@ -56,75 +27,26 @@ class Listener(Client):
             if isinstance(attachment, models.ImageAttachment):
                 if attachment.is_animated:
                     resolved.append({'type': 'image', 'url': attachment.animated_preview_url})
-                    #resolved.append(attachment.animated_preview_url)
                 else:
                     resolved.append({'type': 'image', 'url': attachment.large_preview_url})
-                    #resolved.append(attachment.large_preview_url)
             
             elif isinstance(attachment, models.AudioAttachment):
-                resolved.append({'type': 'audio', 'url': attachment.url})
-                #resolved.append(attachment.url)
+                resolved.append({'type': 'audio', 'url': attachment.url, 'filename': attachment.filename})
 
             elif isinstance(attachment, models.FileAttachment):
-                resolved.append({'type': 'file', 'url': attachment.url})
-                #resolved.append(attachment.url)
+                resolved.append({'type': 'file', 'url': attachment.url, 'filename': attachment.name})
             
             elif isinstance(attachment, models.ShareAttachment):
                 resolved.append({'type': 'share', 'url': attachment.url})
-                #resolved.append(attachment.url)
 
             elif isinstance(attachment, models.VideoAttachment):
-                resolved.append({'type': 'video', 'url': attachment.preview_url})
-                #resolved.append(attachment.preview_url)
+                resolved.append({'type': 'video', 'url': attachment.preview_url, 'filename': attachment.filename})
             
             elif isinstance(attachment, (models.LocationAttachment, models.LiveLocationAttachment)):
                 resolved.append({'type': 'location', 'url': f'https://www.google.com/maps?q={attachment.latitude},{attachment.latitude}', 'lat': attachment.latitude, 'long': attachment.longitude})
-                #resolved.append(f'Latitude: {attachment.latitude}, Longitude: {attachment.longitude}')
             else:
-                print('Unknown attachment type.')
-        print(resolved, end='\n\n\n')
+                utils.DebugDiscord().error(f'Unknown attachment type: {type(attachment)}')
         return resolved
-
-    def __updateOnWebsite(self, notif_text):
-        for i in self.__clients:
-            utils.update_on_website(self.__socket, notif_text, i)
-    
-    @staticmethod
-    def __send_to_discord(hook_url, text):
-        discord_max_char = 2000
-        saparator = '[...]'
-        if len(text) < (discord_max_char - 50):
-            requests.post(hook_url, json={'content': text})
-            return
-        texts = textwrap.wrap(text, width=discord_max_char-50, replace_whitespace=False, expand_tabs=False, break_on_hyphens=False)
-        for i, t in enumerate(texts):
-            if i == 0:
-                t = t + saparator
-            elif i == (len(texts) - 1):
-                t = saparator + t
-            else:
-                t = saparator + t + saparator
-            requests.post(hook_url, json={'content': t})
-
-    def __send_notification_discord(self, notif_text):
-        discord_hook = self.__dbms.get_website_stuff('discord')
-        if not discord_hook:
-            return
-        try:
-            self.__send_to_discord(discord_hook, notif_text)
-        except:
-            print('Warning: Failed to send discord unsend notification:')
-            print(notif_text)
-    
-    def __send_all_message_discord(self, message_text:str):
-        discord_hook = self.__dbms.get_website_stuff('discord_all_message')
-        if not discord_hook:
-            return
-        try:
-            self.__send_to_discord(discord_hook, message_text)
-        except:
-            print('Warning: Failed to send discord all message:')
-            print(message_text)
 
     def __resolveUserName(self, uid):
         user = self.__dbms.unsentManager.queryContact(uid)
@@ -163,14 +85,13 @@ class Listener(Client):
         message = {
             'text': message_object.text,
             'sticker': None if not message_object.sticker else message_object.sticker.url,
-            'attachments' : Listener.__resolveAttachmentx(message_object.attachments)
+            'attachments' : self.__resolve_attachments(message_object.attachments)
         }
         userName = self.__resolveUserName(author_id)
         
         thread_name = None if author_id==thread_id else self.__resolveMessageThreadName(thread_id)
-        self.__send_all_message_discord(make_notification_text(userName, message, ts, None, 'send', thread_name))
+        self.__discord_ns.notification_on_sent(userName, message, thread_name)
         self.__dbms.unsentManager.addMessage(message_id=mid, timestamp=ts, sender=author_id, message=message)
-    
     
     def onMessageUnsent(self, mid=None, author_id=None, ts=None, thread_id=None, **kwargs):
         res = self.__dbms.unsentManager.queryMessage(mid)
@@ -181,10 +102,9 @@ class Listener(Client):
         threadName = self.__resolveMessageThreadName(thread_id)
         self.__dbms.unsentManager.addUnsentMessage(message_id=mid, timestamp=res.timestamp, timestamp_us=ts, sender=author_id, sender_name=userName, message=res.message, thread_id=thread_id, thread_name=threadName)
 
-        notif_thread_name = None if author_id==thread_id else threadName
-        notif_text = make_notification_text(userName, res.message, res.timestamp, ts, thread_name=notif_thread_name)
-        self.__send_notification_discord(notif_text)
-        self.__updateOnWebsite(notif_text)
+        thread_name = None if author_id==thread_id else threadName
+        self.__discord_ns.notification_on_unsent(userName, res.message,  res.timestamp, ts, thread_name=thread_name)
+        self.__website_updater.update_on_website_single(userName, res.message,  res.timestamp, ts, thread_name=thread_name)
 
 def keep_alive(listener, dbms):
     ping_sleep_time = 4 # hours
@@ -210,4 +130,3 @@ def keep_alive(listener, dbms):
 
 def main(listener, always_active=False):
     listener.listen(always_active)
-

@@ -164,20 +164,6 @@ class ConfigureUUS:
             print('Invalid URL.')
         self.__dbms.update_website_stuff('discord', url)
         
-    def configure_push_bullet(self):
-        pb = self.__dbms.get_website_stuff('push_bullet')
-        if  pb != None:
-            print('Push Bullet notification is already configured.')
-            overwrite = click.confirm('Overwrite?', default=False)
-            if not overwrite:
-                return
-        while True:
-            token = input('Enter Push Bullet access token: ').strip()
-            if token:
-                break
-            print('Empty token.')
-        self.__dbms.update_website_stuff('push_bullet', token)
-    
     def configure_discord_all_msg(self):
         discord = self.__dbms.get_website_stuff('discord_all_message')
         if  discord != None:
@@ -326,13 +312,9 @@ class ConfigureUUS:
         c = click.confirm('Configure discord unsent notification?', default=True)
         if c:
             self.configure_discord_hook()
-        c = click.confirm('Configure Push Bullet unsent notification?', default=True)
-        if c:
-            self.configure_push_bullet()
         c = click.confirm('Configure discord all message notification?', default=True)
         if c:
             self.configure_discord_all_msg()
         c = click.confirm('Configure max message age and cleanup interval?', default=True)
         if c:
             self.configure_cleanup()
-

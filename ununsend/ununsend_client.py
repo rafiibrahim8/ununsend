@@ -40,7 +40,7 @@ class Listener(Client):
                 resolved.append({'type': 'video', 'url': attachment.preview_url, 'filename': attachment.filename})
             
             elif isinstance(attachment, (models.LocationAttachment, models.LiveLocationAttachment)):
-                resolved.append({'type': 'location', 'url': f'https://www.google.com/maps?q={attachment.latitude},{attachment.latitude}', 'lat': attachment.latitude, 'long': attachment.longitude})
+                resolved.append({'type': 'location', 'url': f'https://www.google.com/maps?q={attachment.latitude},{attachment.longitude}', 'lat': attachment.latitude, 'long': attachment.longitude})
             else:
                 utils.DebugDiscord().error(f'Unknown attachment type: {type(attachment)}')
         return resolved

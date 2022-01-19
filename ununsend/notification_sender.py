@@ -20,7 +20,7 @@ class DiscordNotificationSender:
         og = utils.opengraph_lookup(url)
         embed = dict()
         if og.get('image'):
-            embed['thumbnail'] = {'url': og['image']}
+            embed['image'] = {'url': og['image']}
         if og.get('description'):
             embed['description'] = og['description']
         if og.get('title'):

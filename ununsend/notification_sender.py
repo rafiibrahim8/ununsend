@@ -35,7 +35,7 @@ class DiscordNotificationSender:
 
         return embed
 
-    def __resove_location_embed(attachment):
+    def __resove_location_embed(self, attachment):
         og = utils.opengraph_lookup(attachment['url'])
         embed = dict()
         if og.get('image'):

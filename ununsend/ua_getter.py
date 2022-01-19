@@ -1,7 +1,6 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import unquote
 import time
-import os
 
 from .utils import DaemonThread
 

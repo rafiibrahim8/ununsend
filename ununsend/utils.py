@@ -194,16 +194,3 @@ class UserTZ:
         if cls.__tz is None:
             return datetime.timezone.utc
         return cls.__tz
-
-
-
-# def debug_discord(message):
-#         path = os.path.expanduser(__debug_discord)
-#         if not os.path.isfile(path):
-#             return
-#         with open(path, 'r') as f:
-#             debug_hook = f.read().strip()
-#         try:
-#             requests.post(debug_hook, json={'content': message})
-#         except:
-#             print(f'{colors.red}Debug Discord Failed.\nMessage: {message}{colors.end}')

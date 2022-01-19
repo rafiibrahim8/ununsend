@@ -1,6 +1,3 @@
-import json
-import requests
-import textwrap
 import fbchat.models as models
 from fbchat import Client
 from fbchat import Message, ThreadType

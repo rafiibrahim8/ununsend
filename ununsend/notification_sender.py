@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import random
 import requests
 
 from . import utils
@@ -103,7 +104,10 @@ class DiscordNotificationSender:
         jdata['embeds'] = list()
 
         for i, e in enumerate(json_data['embeds'], start=1):
+            if not e.get('color'):
+                e['color'] = random.randint(0, 0xffffff)
             jdata['embeds'].append(e)
+            
             if i == 10:
                 self.__post_to_discord_impl(url, jdata)
                 jdata.pop('content', None)

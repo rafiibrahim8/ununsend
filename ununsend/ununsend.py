@@ -3,7 +3,6 @@ import sys
 
 from .dbms import DBMS
 from .utils import format_token_print, DaemonThread
-from .wsgi import website_main
 from .configure_uus import ConfigureUUS
 from . import __version__
 

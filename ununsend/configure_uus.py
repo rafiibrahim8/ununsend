@@ -1,5 +1,6 @@
 import fbchat
 import click
+import pytz
 import requests
 import json
 import urllib
@@ -49,7 +50,7 @@ class ConfigureUUS:
         cookies = []
         for name, browser in browsers.items():
             try:
-                cookie = requests.utils.dict_from_cookiejar(browser(domain_name='messenger.com'))
+                cookie = requests.utils.dict_from_cookiejar(browser(domain_name='facebook.com'))
                 user_name = self.check_cookie_whois(cookie)
                 if user_name != None:
                     cookies.append({'browser_name': name, 'user_name': user_name, 'cookie': cookie})
@@ -163,20 +164,6 @@ class ConfigureUUS:
             print('Invalid URL.')
         self.__dbms.update_website_stuff('discord', url)
         
-    def configure_push_bullet(self):
-        pb = self.__dbms.get_website_stuff('push_bullet')
-        if  pb != None:
-            print('Push Bullet notification is already configured.')
-            overwrite = click.confirm('Overwrite?', default=False)
-            if not overwrite:
-                return
-        while True:
-            token = input('Enter Push Bullet access token: ').strip()
-            if token:
-                break
-            print('Empty token.')
-        self.__dbms.update_website_stuff('push_bullet', token)
-    
     def configure_discord_all_msg(self):
         discord = self.__dbms.get_website_stuff('discord_all_message')
         if  discord != None:
@@ -276,7 +263,39 @@ class ConfigureUUS:
             client.changeGroupImageRemote('https://i.imgur.com/b0RhVfN.png',thread_id=thread_id)
         except:
             pass
+
+    def configure_timezone(self):
+        tz = self.__dbms.get_website_stuff('timezone')
+        if  tz != None:
+            print(f'Timezone has already configured as {tz}.')
+            overwrite = click.confirm('Overwrite?', default=False)
+            if not overwrite:
+                return
+        while True:
+            try:
+                cc = input('Enter ISO Alpha-2 country code: ',).strip()
+                if len(pytz.country_timezones(cc)) > 0:
+                    break
+            except KeyboardInterrupt:
+                raise
+            except:
+                pass
+            print('Invalid country code.\nSee https://wikipedia.org/wiki/List_of_ISO_3166_country_codes for details.')
         
+        while True:
+            for i, tz in enumerate(pytz.country_timezones(cc), start=1):
+                print(f'\t{i}. {tz}')
+            try:
+                choice = int(input('Choose a timezone: ')) - 1
+                tz = pytz.country_timezones(cc)[choice]
+                break
+            except KeyboardInterrupt:
+                raise
+            except:
+                print('Invalid Choice. Try again.')
+        
+        self.__dbms.update_website_stuff('timezone', tz)
+
     def configure(self):
         c = click.confirm('Configure cookies?', default=True)
         if c:
@@ -287,16 +306,15 @@ class ConfigureUUS:
         c = click.confirm('Configure keep alive (highly recommended)?', default=True)
         if c:
             self.configure_keep_alive()
+        c = click.confirm('Configure timezone (highly recommended)?', default=True)
+        if c:
+            self.configure_timezone()
         c = click.confirm('Configure discord unsent notification?', default=True)
         if c:
             self.configure_discord_hook()
-        c = click.confirm('Configure Push Bullet unsent notification?', default=True)
-        if c:
-            self.configure_push_bullet()
         c = click.confirm('Configure discord all message notification?', default=True)
         if c:
             self.configure_discord_all_msg()
         c = click.confirm('Configure max message age and cleanup interval?', default=True)
         if c:
             self.configure_cleanup()
-

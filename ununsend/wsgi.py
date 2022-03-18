@@ -3,10 +3,6 @@ from flask import request as flask_request
 from flask_socketio import SocketIO
 from flask_login import LoginManager
 from flask_login import login_user, login_required, current_user
-from fbchat import FBchatUserError
-import time
-import string
-import random
 import json
 import functools
 import getpass
@@ -15,6 +11,7 @@ import sys
 
 from . import ununsend_client
 from .dbms import DBMS
+from .notification_sender import WebsiteUpdater
 from . import utils
 from . import __static_path, __template_path
 
@@ -62,8 +59,8 @@ def handle_client_connected(json_data):
         return
     
     initial_message = dbms.unsentManager.get_all() # should not case a problem as unsent messages are not that often
-    notif_texts = [ununsend_client.make_notification_text_from_obj(i) for i in initial_message]
-    utils.update_on_website(socketio, notif_texts, flask_request.sid)
+    notif_texts = [WebsiteUpdater.make_website_notif_from_unsend_obj(i) for i in initial_message]
+    WebsiteUpdater.update_on_website_bulk(socketio, notif_texts, flask_request.sid)
 
 @app.route('/')
 @login_required
@@ -83,13 +80,17 @@ def auth_user():
     return render_template('afterauth.html')
 
 def website_main(active_network=False, port=5000, print_info=[], dbms_parm=None):
-    utils.debug_discord(f'Starting server at {int(time.time())}')
     global dbms
     if dbms_parm == None:
         dbms= DBMS()
     else:
         dbms = dbms_parm
     
+    tz = dbms.get_website_stuff('timezone')
+    utils.UserTZ.set_tz(tz)
+    debug_discord = utils.DebugDiscord(tz)
+    debug_discord.info('Starting Ununsend server.')
+
     app.config['SECRET_KEY'] = dbms.get_flask_secret()
     run_listener = True
     

@@ -1,17 +1,21 @@
 import os
+import re
 import time
+import pytz
 import json
 import psutil
 import requests
-import click
+import datetime
 import base64
+from urllib.parse import unquote
+from bs4 import BeautifulSoup
 from socket import AF_INET
 from threading import Thread
 from Crypto import Random
 from Crypto.Cipher import AES
 from Crypto.Protocol.KDF import PBKDF2
 
-from . import __debug_discord
+from . import __debug_discord as debug_discord_file_path
 from . import colors
 
 # Modified from https://stackoverflow.com/questions/12524994/encrypt-decrypt-using-pycrypto-aes-256 by mnothic
@@ -106,13 +110,87 @@ def decrypt_cookies(cookie, password):
         print('Something went wrong.')
         print('Check your password and try again.')
 
-def debug_discord(message):
-        path = os.path.expanduser(__debug_discord)
+def opengraph_lookup(url):
+    og_meta = dict()
+    if url.startswith('https://l.facebook.com'):
+        url = unquote(re.findall('u=([^&]+)',url)[0])
+    try:
+        soup = BeautifulSoup(requests.get(url).text, 'html.parser')
+    except:
+        return og_meta
+    to_find = ['title', 'description', 'image']
+    for i in to_find:
+        t = soup.find('meta', property=f'og:{i}')
+        if t:
+            og_meta[i] = t.get('content')
+    return og_meta
+
+class DebugDiscord:
+    __instance = None
+    def __new__(cls, tz=None, time_format='%Y-%m-%d %H:%M:%S'):
+        if cls.__instance is None:
+            cls.__instance = super().__new__(cls)
+            cls.__instance.__init(tz, time_format)
+        else:
+            cls.__instance.__partial_init(tz, time_format)
+        return cls.__instance
+
+    
+    def __init(self, tz, time_format):
+        path = os.path.expanduser(debug_discord_file_path)
         if not os.path.isfile(path):
+            self.__is_debug = False
             return
+        
         with open(path, 'r') as f:
-            debug_hook = f.read().strip()
+            self.__debug_hook = f.read().strip()
+
+        if not tz:
+            tz = 'UTC'
+        self.__timezone = tz
+        self.__timezone_dt = pytz.timezone(tz)
+        self.__time_fmt = time_format
+        self.__is_debug = True
+    
+    def __partial_init(self, tz, time_format):
+        if not self.__is_debug:
+            return
+        
+        if self.__timezone != tz and tz:
+            self.__timezone = tz
+            self.__timezone_dt = pytz.timezone(tz)
+        if self.__time_fmt != time_format and time_format:
+            self.__time_fmt = time_format
+
+    def __send_text_hook(self, text, with_time):
+        if not self.__is_debug:
+            return
+        if with_time:
+            fmt_time = datetime.datetime.now(self.__timezone_dt).strftime(self.__time_fmt)
+            text = f'[{fmt_time}]{text}'
         try:
-            requests.post(debug_hook, json={'content': message})
+            requests.post(self.__debug_hook, json={'content': text})
         except:
-            print(f'{colors.red}Debug Discord Failed.\nMessage: {message}{colors.end}')
+            print(f'{colors.red}Debug Discord: {text}{colors.end}')
+
+    def info(self, message, with_time=True):
+        self.__send_text_hook(f'[INFO] {message}', with_time)
+
+    def error(self, message, with_time=True):
+        self.__send_text_hook(f'[ERROR] {message}', with_time)
+
+class UserTZ:
+    __tz = None
+    
+    @classmethod
+    def set_tz(cls, tz):
+        if isinstance(tz, str):
+            cls.__tz = pytz.timezone(tz)
+        else:
+            cls.__tz = tz
+    
+    @classmethod
+    def get_tz(cls):
+        if cls.__tz is None:
+            return datetime.timezone.utc
+        return cls.__tz
